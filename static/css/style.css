@@ -12,23 +12,23 @@
 /* ── 1. DESIGN TOKENS ────────────────────────────────────────────────── */
 :root {
   /* Brand & Accent */
-  --color-primary:       #0f62fe;
-  --color-primary-hover: #0353e9;
-  --color-primary-press: #002d9c;
+  --color-primary:       #176b57;
+  --color-primary-hover: #105746;
+  --color-primary-press: #0b4035;
 
   /* Surfaces */
   --color-canvas:        #ffffff;
-  --color-surface-1:     #f4f4f4;
-  --color-surface-2:     #e0e0e0;
-  --color-hairline:      #e0e0e0;
-  --color-hairline-str:  #8c8c8c;
-  --color-inverse-canvas:#161616;
-  --color-inverse-s1:    #262626;
+  --color-surface-1:     #f3f7f4;
+  --color-surface-2:     #e4ece7;
+  --color-hairline:      #d6e1da;
+  --color-hairline-str:  #82958a;
+  --color-inverse-canvas:#18372f;
+  --color-inverse-s1:    #315247;
 
   /* Text */
-  --color-ink:           #161616;
-  --color-ink-muted:     #525252;
-  --color-ink-subtle:    #8c8c8c;
+  --color-ink:           #1c3028;
+  --color-ink-muted:     #4d6257;
+  --color-ink-subtle:    #74867c;
   --color-inverse-ink:   #f4f4f4;
   --color-inverse-muted: #c6c6c6;
   --color-on-primary:    #ffffff;
@@ -41,9 +41,9 @@
   --color-error-bg:      #fff1f1;
 
   /* Typography */
-  --font-family:   'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
-  --tracking-body: 0.16px;
-  --tracking-cap:  0.32px;
+  --font-family:   'DM Sans', sans-serif;
+  --tracking-body: 0;
+  --tracking-cap:  0;
 
   /* Spacing (4px base grid) */
   --sp-1: 4px;
@@ -184,6 +184,17 @@ code {
   height: 20px;
   color: var(--color-primary);
   flex-shrink: 0;
+}
+.top-nav__brand-mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 .top-nav__brand-text {
   font-size: 0.875rem;
@@ -369,7 +380,7 @@ code {
 /* ── 9. FORM SECTION (Carbon feature-card flat 0px) ─────────────────── */
 .cds-section {
   border: 1px solid var(--color-hairline);
-  border-radius: 0;                  /* Carbon: 0px always */
+  border-radius: 8px;
   background: var(--color-canvas);
   margin-bottom: var(--sp-4);
 }
@@ -394,7 +405,7 @@ code {
   font-weight: 600;
   letter-spacing: 0;
   flex-shrink: 0;
-  border-radius: 0;
+  border-radius: 50%;
 }
 .cds-section__title {
   font-size: 1rem;
@@ -442,9 +453,9 @@ code {
 
 /* Label — 12px, ink-muted */
 .cds-label {
-  font-size: 0.75rem;
-  font-weight: 400;
-  color: var(--color-ink-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-ink);
   letter-spacing: var(--tracking-cap);
   line-height: 1.33;
   margin-bottom: var(--sp-1);
@@ -488,10 +499,9 @@ code {
   width: 100%;
   height: 48px;
   padding: 0 var(--sp-4);
-  background: var(--color-surface-1);
-  border: none;
-  border-bottom: 1px solid var(--color-hairline-str);
-  border-radius: 0;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-hairline-str);
+  border-radius: 6px;
   font-family: var(--font-family);
   font-size: 0.875rem;
   font-weight: 400;
@@ -521,6 +531,40 @@ code {
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
   border-bottom-color: var(--color-primary);
+}
+
+.gender-fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.gender-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+.gender-option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 48px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--color-hairline-str);
+  border-radius: 6px;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.gender-option:has(input:checked) {
+  border-color: var(--color-primary);
+  background: var(--color-surface-1);
+}
+.gender-option input {
+  accent-color: var(--color-primary);
+}
+.gender-option input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
 }
 
 /* Error state */
@@ -721,7 +765,7 @@ code {
   padding: var(--sp-5);
   background: var(--color-surface-1);
   border: 1px dashed var(--color-hairline-str);
-  border-radius: 0;
+  border-radius: 8px;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
   text-align: center;
@@ -896,7 +940,7 @@ code {
   padding: 0 var(--sp-8);
   background: var(--color-primary);
   border: 2px solid var(--color-primary);
-  border-radius: 0;
+  border-radius: 6px;
   font-family: var(--font-family);
   font-size: 0.875rem;
   font-weight: 400;
@@ -962,7 +1006,7 @@ code {
 .cds-modal {
   background: var(--color-canvas);
   border: 1px solid var(--color-hairline);
-  border-radius: 0;
+  border-radius: 8px;
   padding: var(--sp-6);
   width: 100%;
   max-width: 420px;

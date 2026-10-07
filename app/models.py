@@ -7,7 +7,7 @@ so the API layer can validate and forward data without any transformation.
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field, field_validator
 class StudentModel(BaseModel):
     name: str = Field(..., min_length=1, max_length=120, examples=["K Mothish Raghavendra"])
     father_name: str = Field(..., min_length=1, max_length=120, examples=["K Padmanabha Naidu"])
+    gender: Literal["Male", "Female"] = Field(..., examples=["Male", "Female"])
     hall_ticket: str = Field(
         ...,
         min_length=1,
@@ -27,6 +28,11 @@ class StudentModel(BaseModel):
         description="Exactly 10 characters; one character per box.",
     )
     type: str = Field(..., examples=["Regular"], description="Regular or Supplementary")
+
+    @field_validator("name", "father_name", mode="before")
+    @classmethod
+    def title_case_names(cls, value: str) -> str:
+        return value.strip().title() if isinstance(value, str) else value
 
     @field_validator("hall_ticket")
     @classmethod
@@ -50,10 +56,20 @@ class SubjectModel(BaseModel):
     number: int = Field(..., ge=1, examples=[1])
     name: str = Field(..., min_length=1, max_length=120, examples=["Deep Learning"])
 
+    @field_validator("name", mode="before")
+    @classmethod
+    def title_case_name(cls, value: str) -> str:
+        return value.strip().title() if isinstance(value, str) else value
+
 
 class CertificateModel(BaseModel):
     name: str = Field(..., min_length=1, max_length=120, examples=["K Mothish Raghavendra"])
     date: str = Field(..., min_length=1, max_length=20, examples=["2026-2027"])
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def title_case_name(cls, value: str) -> str:
+        return value.strip().title() if isinstance(value, str) else value
 
 
 # =========================================================
@@ -85,6 +101,7 @@ class HallTicketRequest(BaseModel):
                 "student": {
                     "name": "K Mothish Raghavendra",
                     "father_name": "K Padmanabha Naidu",
+                    "gender": "Male",
                     "hall_ticket": "24005A0512",
                     "type": "Regular",
                 },

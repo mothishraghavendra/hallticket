@@ -7,11 +7,10 @@
 {# ── PAGE HERO ── #}
 <div class="form-hero">
   <div class="cds-grid">
-    <p class="form-hero__eyebrow">Examination Management System</p>
-    <h1 class="form-hero__title">Generate your <strong>Hall Ticket</strong></h1>
+    <p class="form-hero__eyebrow">Student services</p>
+    <h1 class="form-hero__title">Hall ticket application</h1>
     <p class="form-hero__desc">
-      Fill in your details, upload your photo — the system will remove the background
-      automatically and produce a ready-to-print PDF.
+      Enter your student and exam details, upload a clear photo, and download your hall ticket as a PDF.
     </p>
   </div>
 </div>
@@ -88,6 +87,21 @@
                    required />
             <span class="cds-error-text" id="err-father-name">Father's name is required.</span>
           </div>
+
+          <fieldset class="cds-form-item gender-fieldset" id="fi-gender">
+            <legend class="cds-label">Gender <span class="cds-label__req" aria-label="required">*</span></legend>
+            <div class="gender-options">
+              <label class="gender-option">
+                <input type="radio" name="gender" value="Male" required />
+                <span>Male</span>
+              </label>
+              <label class="gender-option">
+                <input type="radio" name="gender" value="Female" required />
+                <span>Female</span>
+              </label>
+            </div>
+            <span class="cds-error-text" id="err-gender">Please select a gender.</span>
+          </fieldset>
 
           {# Hall Ticket Number #}
           <div class="cds-form-item" id="fi-hall-ticket">
@@ -210,23 +224,6 @@
             <span class="cds-error-text" id="err-regulation">Please select a regulation.</span>
           </div>
 
-          {# Examination Month / Year — full width #}
-          <div class="cds-form-item cds-col-full" id="fi-month-year">
-            <label for="month_year" class="cds-label">
-              Examination month &amp; year <span class="cds-label__req" aria-label="required">*</span>
-            </label>
-            <input id="month_year"
-                   name="month_year"
-                   type="text"
-                   class="cds-input"
-                   placeholder="e.g. October 2026"
-                   maxlength="30"
-                   style="max-width: 320px;"
-                   required />
-            <span class="cds-helper">Enter as: Month YYYY (e.g. November 2026)</span>
-            <span class="cds-error-text" id="err-month-year">Examination month and year is required.</span>
-          </div>
-
         </div>
       </div>
     </section>
@@ -278,54 +275,11 @@
       </div>
     </section>
 
-    {# ── SECTION 4: CERTIFICATE DETAILS ── #}
+    {# ── SECTION 4: PHOTOGRAPH ── #}
     <section class="cds-section" aria-labelledby="sec4-title">
       <div class="cds-section__header">
         <span class="cds-section__step" aria-hidden="true">4</span>
-        <h2 class="cds-section__title" id="sec4-title">Certificate Details</h2>
-      </div>
-      <div class="cds-section__body">
-        <div class="cds-form-grid cds-form-grid--2">
-
-          <div class="cds-form-item" id="fi-cert-name">
-            <label for="cert_name" class="cds-label">
-              Name on certificate <span class="cds-label__req" aria-label="required">*</span>
-            </label>
-            <input id="cert_name"
-                   name="cert_name"
-                   type="text"
-                   class="cds-input"
-                   placeholder="e.g. K Mothish Raghavendra"
-                   maxlength="120"
-                   required />
-            <span class="cds-helper">Auto-filled from student name. Edit if different.</span>
-            <span class="cds-error-text" id="err-cert-name">Certificate name is required.</span>
-          </div>
-
-          <div class="cds-form-item" id="fi-cert-date">
-            <label for="cert_date" class="cds-label">
-              Academic year <span class="cds-label__req" aria-label="required">*</span>
-            </label>
-            <input id="cert_date"
-                   name="cert_date"
-                   type="text"
-                   class="cds-input"
-                   placeholder="e.g. 2026-2027"
-                   maxlength="20"
-                   required />
-            <span class="cds-helper">Format: YYYY-YYYY</span>
-            <span class="cds-error-text" id="err-cert-date">Academic year is required.</span>
-          </div>
-
-        </div>
-      </div>
-    </section>
-
-    {# ── SECTION 5: PHOTOGRAPH ── #}
-    <section class="cds-section" aria-labelledby="sec5-title">
-      <div class="cds-section__header">
-        <span class="cds-section__step" aria-hidden="true">5</span>
-        <h2 class="cds-section__title" id="sec5-title">Student Photograph</h2>
+        <h2 class="cds-section__title" id="sec4-title">Student Photograph</h2>
       </div>
       <div class="cds-section__body">
 

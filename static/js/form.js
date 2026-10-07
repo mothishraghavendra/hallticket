@@ -353,13 +353,11 @@ const FIELDS = [
     validate: v => /^[A-Za-z0-9]{1,10}$/.test(v),
   },
   { wrap: 'fi-student-type',  input: 'student_type', msg: 'Please select an exam type.' },
+  { wrap: 'fi-gender',        input: 'gender',       msg: 'Please select a gender.' },
   { wrap: 'fi-branch',        input: 'branch',       msg: 'Please select a branch.' },
   { wrap: 'fi-year',          input: 'year',         msg: 'Please select a year.' },
   { wrap: 'fi-semester',      input: 'semester',     msg: 'Please select a semester.' },
   { wrap: 'fi-regulation',   input: 'regulation',   msg: 'Please select a regulation.' },
-  { wrap: 'fi-month-year',    input: 'month_year',   msg: 'Examination month and year is required.' },
-  { wrap: 'fi-cert-name',     input: 'cert_name',    msg: 'Certificate name is required.' },
-  { wrap: 'fi-cert-date',     input: 'cert_date',    msg: 'Academic year is required.' },
 ];
 
 function validateForm() {
@@ -367,7 +365,9 @@ function validateForm() {
   const errors = [];
 
   for (const f of FIELDS) {
-    const el  = document.getElementById(f.input);
+    const el = f.input === 'gender'
+      ? document.querySelector('input[name="gender"]:checked')
+      : document.getElementById(f.input);
     const val = el?.value.trim() ?? '';
 
     const empty   = val === '';
@@ -480,17 +480,27 @@ function hideOverlay(success = true) {
    SECTION 6 — PAYLOAD BUILDER
 ═══════════════════════════════════════════════════════════ */
 
+function toTitleCase(value) {
+  return value.trim().toLocaleLowerCase().replace(
+    /(^|[^\p{L}\p{N}])(\p{L})/gu,
+    (_, separator, letter) => separator + letter.toLocaleUpperCase(),
+  );
+}
+
 function buildPayload() {
+  const studentName = toTitleCase(document.getElementById('student_name').value);
+  const currentYear = new Date().getFullYear();
   const subjects = [...subjectsList.querySelectorAll('.subject-name')]
-    .map((el, i) => ({ number: i + 1, name: el.value.trim() }))
+    .map((el, i) => ({ number: i + 1, name: toTitleCase(el.value) }))
     .filter(s => s.name);
 
   return {
     student: {
-      name:        document.getElementById('student_name').value.trim(),
-      father_name: document.getElementById('father_name').value.trim(),
+      name:        studentName,
+      father_name: toTitleCase(document.getElementById('father_name').value),
       hall_ticket: document.getElementById('hall_ticket').value.trim().toUpperCase(),
       type:        document.getElementById('student_type').value,
+      gender:      document.querySelector('input[name="gender"]:checked')?.value,
     },
     academic: {
       branch:   document.getElementById('branch').value,
@@ -498,12 +508,12 @@ function buildPayload() {
       semester: document.getElementById('semester').value,
     },
     examination: {
-      month_year: document.getElementById('month_year').value.trim(),
+      month_year: 'November 2026',
     },
     subjects,
     certificate: {
-      name: document.getElementById('cert_name').value.trim(),
-      date: document.getElementById('cert_date').value.trim(),
+      name: studentName,
+      date: `${currentYear} - ${String(currentYear + 1).slice(-2)}`,
     },
   };
 }
@@ -540,7 +550,7 @@ form.addEventListener('submit', async e => {
   if (!valid) {
     showNotification('error', errors[0]);
     // Scroll to first errored field
-    const firstErr = document.querySelector('.cds-form-item--error .cds-input, .cds-form-item--error .cds-select');
+    const firstErr = document.querySelector('.cds-form-item--error .cds-input, .cds-form-item--error .cds-select, .cds-form-item--error input[type="radio"]');
     firstErr?.focus();
     return;
   }
@@ -595,21 +605,7 @@ form.addEventListener('submit', async e => {
 
 
 /* ═══════════════════════════════════════════════════════════
-   SECTION 8 — AUTO-FILL CERT NAME FROM STUDENT NAME
-═══════════════════════════════════════════════════════════ */
-document.getElementById('student_name').addEventListener('input', function () {
-  const certName = document.getElementById('cert_name');
-  if (!certName.dataset.touched) {
-    certName.value = this.value;
-  }
-});
-document.getElementById('cert_name').addEventListener('input', function () {
-  this.dataset.touched = '1';
-});
-
-
-/* ═══════════════════════════════════════════════════════════
-   SECTION 9 — LIVE FIELD VALIDATION (clear error on input)
+   SECTION 8 — LIVE FIELD VALIDATION (clear error on input)
 ═══════════════════════════════════════════════════════════ */
 FIELDS.forEach(f => {
   document.getElementById(f.input)?.addEventListener('input', () => {
@@ -618,4 +614,16 @@ FIELDS.forEach(f => {
   document.getElementById(f.input)?.addEventListener('change', () => {
     setFieldError(f.wrap, false);
   });
+});
+
+['student_name', 'father_name'].forEach(id => {
+  document.getElementById(id).addEventListener('blur', event => {
+    event.currentTarget.value = toTitleCase(event.currentTarget.value);
+  });
+});
+
+subjectsList.addEventListener('focusout', event => {
+  if (event.target.matches('.subject-name')) {
+    event.target.value = toTitleCase(event.target.value);
+  }
 });

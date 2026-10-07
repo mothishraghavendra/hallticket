@@ -2,6 +2,7 @@
   "student": {
     "name": "K Mothish Raghavendra",
     "father_name": "K Padmanabha Naidu",
+    "gender": "Male",
     "hall_ticket": "24005A0512",
     "type":"Regular"
   },

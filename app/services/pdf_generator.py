@@ -123,6 +123,19 @@ def insert_text(page, text, x, y, fontsize=12):
     )
 
 
+def insert_fitted_text(page, text, x, y, max_width, fontsize=12, min_fontsize=3):
+    """Insert text at the largest size that fits within the available width."""
+    if x is None or y is None or text is None:
+        return
+    text = str(text)
+    font = pymupdf.Font("helv")
+    text_width = font.text_length(text, fontsize=fontsize)
+    fitted_fontsize = fontsize
+    if text_width > max_width:
+        fitted_fontsize = max(min_fontsize, fontsize * max_width / text_width)
+    insert_text(page, text, x, y, fontsize=fitted_fontsize)
+
+
 def insert_hall_ticket(page, hall_ticket, positions, fontsize=12):
     """
     Insert hall-ticket number character by character.
@@ -235,18 +248,30 @@ def fill_page_1(page, data):
         (100, 565.5), (100, 593.4), (100, 623.2),
         (350.0, 480.7),
     ]
+    GENDER_POSITIONS = {
+        "Male": (270, 425.5),
+        "Female": (445, 425.5),
+    }
     # ---- End coordinates ----
 
     insert_text(page, academic["branch"], BRANCH_X, BRANCH_Y, fontsize=13)
     insert_text(page, academic["semester"], YEAR_X, YEAR_Y, fontsize=13)
     insert_text(page, examination["month_year"], MONTH_YEAR_X, MONTH_YEAR_Y, fontsize=12)
     insert_hall_ticket(page, student["hall_ticket"], HALL_TICKET_POSITIONS, fontsize=12)
-    insert_text(page, student["name"], STUDENT_NAME_X, STUDENT_NAME_Y, fontsize=12)
-    insert_text(page, student["father_name"], FATHER_NAME_X, FATHER_NAME_Y, fontsize=12)
+    page_text_width = page.rect.width - 24
+    insert_fitted_text(page, student["name"], STUDENT_NAME_X, STUDENT_NAME_Y, page_text_width - STUDENT_NAME_X)
+    insert_fitted_text(page, student["father_name"], FATHER_NAME_X, FATHER_NAME_Y, page_text_width - FATHER_NAME_X)
+    gender_x, gender_y = GENDER_POSITIONS[student["gender"]]
+    page.draw_polyline(
+        [(gender_x - 2, gender_y - 4), (gender_x + 3, gender_y + 1), (gender_x + 14, gender_y - 13)],
+        color=(0, 0, 0),
+        width=2.5,
+        overlay=True,
+    )
 
     for subject, (x, y) in zip(subjects, SUBJECT_POSITIONS):
         subject_text = f'{subject["number"]}) {subject["name"]}'
-        insert_text(page, subject_text, x, y, fontsize=10)
+        insert_fitted_text(page, subject_text, x, y, page.rect.width - 24 - x, fontsize=10)
 
 
 # ---------------------------------------------------------
@@ -257,14 +282,20 @@ def fill_page_2(page, data):
     certificate = data["certificate"]
 
     # ---- Coordinates (UNCHANGED) ----
-    CERTIFICATE_NAME_X = 260.6
+    CERTIFICATE_NAME_X = 240.6
     CERTIFICATE_NAME_Y = 100.3
 
     CERTIFICATE_DATE_X = 215.7
     CERTIFICATE_DATE_Y = 123.9
     # ---- End coordinates ----
 
-    insert_text(page, certificate["name"], CERTIFICATE_NAME_X, CERTIFICATE_NAME_Y, fontsize=12)
+    insert_fitted_text(
+        page,
+        certificate["name"],
+        CERTIFICATE_NAME_X,
+        CERTIFICATE_NAME_Y,
+        page.rect.width - 24 - CERTIFICATE_NAME_X,
+    )
     insert_text(page, certificate["date"], CERTIFICATE_DATE_X, CERTIFICATE_DATE_Y, fontsize=12)
 
 
@@ -285,13 +316,13 @@ def fill_page_3(page, data, photo_source: Union[str, bytes]):
         (365, 95), (385, 95), (405, 95), (425, 95), (443, 95),
         (461, 95), (483, 95), (500, 95), (520, 95), (540, 95),
     ]
-    DUPLICATE_STUDENT_NAME_X = 270.0
+    DUPLICATE_STUDENT_NAME_X = 250.0
     DUPLICATE_STUDENT_NAME_Y = 120.4
-    DUPLICATE_FATHER_NAME_X = 270.0
+    DUPLICATE_FATHER_NAME_X = 250.0
     DUPLICATE_FATHER_NAME_Y = 140.0
-    DUPLICATE_MONTH_YEAR_X = 270.0
+    DUPLICATE_MONTH_YEAR_X = 250.0
     DUPLICATE_MONTH_YEAR_Y = 155.9
-    DUPLICATE_EXAM_TYPE_X = 270.0
+    DUPLICATE_EXAM_TYPE_X = 250.0
     DUPLICATE_EXAM_TYPE_Y = 172.6
     DUPLICATE_YEAR_X = 522.3
     DUPLICATE_YEAR_Y = 74
@@ -310,13 +341,13 @@ def fill_page_3(page, data, photo_source: Union[str, bytes]):
         (365, 486), (385, 486), (405, 486), (425, 486), (443, 486),
         (461, 486), (483, 486), (500, 486), (520, 486), (540, 486),
     ]
-    ORIGINAL_STUDENT_NAME_X = 270.0
+    ORIGINAL_STUDENT_NAME_X = 250.0
     ORIGINAL_STUDENT_NAME_Y = 510
-    ORIGINAL_FATHER_NAME_X = 270.0
+    ORIGINAL_FATHER_NAME_X = 250.0
     ORIGINAL_FATHER_NAME_Y = 530
-    ORIGINAL_MONTH_YEAR_X = 270.0
+    ORIGINAL_MONTH_YEAR_X = 250.0
     ORIGINAL_MONTH_YEAR_Y = 547
-    ORIGINAL_EXAM_TYPE_X = 270.0
+    ORIGINAL_EXAM_TYPE_X = 250.0
     ORIGINAL_EXAM_TYPE_Y = 563
     ORIGINAL_YEAR_X = 522.3
     ORIGINAL_YEAR_Y = 465
@@ -349,29 +380,31 @@ def fill_page_3(page, data, photo_source: Union[str, bytes]):
 
     # --- INSERT DUPLICATE ---
     insert_hall_ticket(page, student["hall_ticket"], DUPLICATE_HALL_TICKET_POSITIONS, fontsize=12)
-    insert_text(page, student["name"], DUPLICATE_STUDENT_NAME_X, DUPLICATE_STUDENT_NAME_Y, fontsize=12)
-    insert_text(page, student["father_name"], DUPLICATE_FATHER_NAME_X, DUPLICATE_FATHER_NAME_Y, fontsize=12)
+    duplicate_name_width = DUPLICATE_PHOTO_TOP_LEFT[0] - DUPLICATE_STUDENT_NAME_X - 8
+    insert_fitted_text(page, student["name"], DUPLICATE_STUDENT_NAME_X, DUPLICATE_STUDENT_NAME_Y, duplicate_name_width)
+    insert_fitted_text(page, student["father_name"], DUPLICATE_FATHER_NAME_X, DUPLICATE_FATHER_NAME_Y, duplicate_name_width)
     insert_text(page, examination["month_year"], DUPLICATE_MONTH_YEAR_X, DUPLICATE_MONTH_YEAR_Y, fontsize=12)
     insert_text(page, student["type"], DUPLICATE_EXAM_TYPE_X, DUPLICATE_EXAM_TYPE_Y, fontsize=12)
     insert_text(page, academic["year"], DUPLICATE_YEAR_X, DUPLICATE_YEAR_Y, fontsize=12)
     insert_text(page, academic["semester"], DUPLICATE_SEMESTER_X, DUPLICATE_SEMESTER_Y, fontsize=12)
 
     for subject, (x, y) in zip(subjects, DUPLICATE_SUBJECT_POSITIONS):
-        insert_text(page, subject["name"], x, y, fontsize=11)
+        insert_fitted_text(page, subject["name"], x, y, page.rect.width - 24 - x, fontsize=11)
 
     page.insert_image(rect_dup, stream=photo_png_bytes)
 
     # --- INSERT ORIGINAL ---
     insert_hall_ticket(page, student["hall_ticket"], ORIGINAL_HALL_TICKET_POSITIONS, fontsize=12)
-    insert_text(page, student["name"], ORIGINAL_STUDENT_NAME_X, ORIGINAL_STUDENT_NAME_Y, fontsize=12)
-    insert_text(page, student["father_name"], ORIGINAL_FATHER_NAME_X, ORIGINAL_FATHER_NAME_Y, fontsize=12)
+    original_name_width = ORIGINAL_PHOTO_TOP_LEFT[0] - ORIGINAL_STUDENT_NAME_X - 8
+    insert_fitted_text(page, student["name"], ORIGINAL_STUDENT_NAME_X, ORIGINAL_STUDENT_NAME_Y, original_name_width)
+    insert_fitted_text(page, student["father_name"], ORIGINAL_FATHER_NAME_X, ORIGINAL_FATHER_NAME_Y, original_name_width)
     insert_text(page, examination["month_year"], ORIGINAL_MONTH_YEAR_X, ORIGINAL_MONTH_YEAR_Y, fontsize=12)
     insert_text(page, student["type"], ORIGINAL_EXAM_TYPE_X, ORIGINAL_EXAM_TYPE_Y, fontsize=12)
     insert_text(page, academic["year"], ORIGINAL_YEAR_X, ORIGINAL_YEAR_Y, fontsize=12)
     insert_text(page, academic["semester"], ORIGINAL_SEMESTER_X, ORIGINAL_SEMESTER_Y, fontsize=12)
 
     for subject, (x, y) in zip(subjects, ORIGINAL_SUBJECT_POSITIONS):
-        insert_text(page, subject["name"], x, y, fontsize=11)
+        insert_fitted_text(page, subject["name"], x, y, page.rect.width - 24 - x, fontsize=11)
 
     page.insert_image(rect_orig, stream=photo_png_bytes)
 
