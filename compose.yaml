@@ -1,0 +1,43 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      PORT: "8000"
+      U2NET_HOME: /models/u2net
+      NAME_REGISTRY_PATH: /runtime-data/generated_names.json
+    volumes:
+      - u2net-models:/models/u2net
+      - generated-names:/runtime-data
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
+      interval: 30s
+      timeout: 5s
+      start_period: 5m
+      retries: 3
+    networks:
+      - private
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN in .env}
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - private
+
+volumes:
+  u2net-models:
+  generated-names:
+
+networks:
+  private:
+    driver: bridge

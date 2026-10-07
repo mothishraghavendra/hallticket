@@ -27,3 +27,5 @@ Thumbs.db
 !/output/.gitkeep
 /temp/*
 !/temp/.gitkeep
+/runtime-data/*.json
+!/runtime-data/.gitkeep

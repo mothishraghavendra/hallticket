@@ -1,14 +1,12 @@
 """
 PDF generation service (Optimized for low latency, zero disk I/O, and minimal memory).
 
-Re-uses ALL logic from the original main.py verbatim — every coordinate,
-every font-size, every character grid position — while achieving:
+Re-uses the form-filling logic from the original main.py while achieving:
   1. 100% In-Memory Processing: No temporary files created on disk.
   2. Template In-Memory Caching: template.pdf bytes cached in RAM once.
-  3. Single Image Resampling: Prepared once for duplicate & original boxes,
-     avoiding redundant LANCZOS filtering and PNG re-compression.
+    3. Per-Box Image Fitting: Each photo is resampled to its own box aspect ratio.
   4. Deflate Stream Compression: Produces smaller, optimized PDF bytes directly.
-  5. Strict Coordinate Preservation: No PDF layout coordinate is changed.
+    5. Measured Duplicate Bounds: The duplicate photo uses measured PDF bounds.
 
 Complexity
 ----------
@@ -102,7 +100,7 @@ def _sync_generate(data: dict, photo_bytes: bytes) -> bytes:
 
 # =========================================================
 # =========================================================
-# PAGE FILL FUNCTIONS — COORDINATES UNCHANGED FROM main.py
+# PAGE FILL FUNCTIONS — LAYOUT BASED ON main.py
 # =========================================================
 # =========================================================
 
@@ -156,8 +154,8 @@ def prepare_photo(image_input: Union[str, bytes, BytesIO], target_width: int, ta
     """
     Prepare photograph for insertion.
 
-    Maintains aspect ratio, supports ZOOM_OUT / ZOOM_IN, crops excess,
-    produces exact target dimensions. Logic is identical to main.py.
+    Fill the target PDF box without an inner margin. ImageOps.fit preserves
+    aspect ratio by cropping excess portions of the image.
     """
     if isinstance(image_input, bytes):
         image = Image.open(BytesIO(image_input))
@@ -177,6 +175,14 @@ def prepare_photo(image_input: Union[str, bytes, BytesIO], target_width: int, ta
         raise ValueError("ZOOM_IN cannot be negative.")
     if ZOOM_OUT > 0 and ZOOM_IN > 0:
         raise ValueError("Use either ZOOM_OUT or ZOOM_IN, not both at the same time.")
+
+    # Fit the segmented person, not the transparent source-image margins.
+    alpha = image.getchannel("A")
+    subject_mask = alpha.point(lambda value: 255 if value > 16 else 0)
+    subject_bounds = subject_mask.getbbox()
+    if subject_bounds:
+        left, top, right, bottom = subject_bounds
+        image = image.crop((left, top, right, bottom))
 
     # ZOOM OUT — add padding
     if ZOOM_OUT > 0:
@@ -203,12 +209,11 @@ def prepare_photo(image_input: Union[str, bytes, BytesIO], target_width: int, ta
             raise ValueError("ZOOM_IN is too large vertically.")
         image = image.crop((left, top, right, bottom))
 
-    # Fit into target box — aspect-ratio preserved, exact dimensions
     return ImageOps.fit(
         image,
         (target_width, target_height),
         method=Image.Resampling.LANCZOS,
-        centering=(0.5, 0.35),  # Slightly favor top (face/head)
+        centering=(0.5, 0.35),
     )
 
 
@@ -367,16 +372,19 @@ def fill_page_3(page, data, photo_source: Union[str, bytes]):
     rect_dup = pymupdf.Rect(*DUPLICATE_PHOTO_TOP_LEFT, *DUPLICATE_PHOTO_BOTTOM_RIGHT)
     rect_orig = pymupdf.Rect(*ORIGINAL_PHOTO_TOP_LEFT, *ORIGINAL_PHOTO_BOTTOM_RIGHT)
 
-    # High-resolution scale x4 (both boxes have exact width 90.15 and height 94.45)
+    # High-resolution scale x4
     SCALE = 4
-    target_width = max(1, int(rect_dup.width * SCALE))
-    target_height = max(1, int(rect_dup.height * SCALE))
+    duplicate_target_width = max(1, int(rect_dup.width * SCALE))
+    duplicate_target_height = max(1, int(rect_dup.height * SCALE))
 
-    # Optimization: Prepare fitted image ONCE and reuse stream for both boxes
-    fitted_image = prepare_photo(photo_source, target_width, target_height)
-    image_buffer = BytesIO()
-    fitted_image.save(image_buffer, format="PNG")
-    photo_png_bytes = image_buffer.getvalue()
+    duplicate_image = prepare_photo(
+        photo_source,
+        duplicate_target_width,
+        duplicate_target_height,
+    )
+    duplicate_image_buffer = BytesIO()
+    duplicate_image.save(duplicate_image_buffer, format="PNG")
+    duplicate_photo_png_bytes = duplicate_image_buffer.getvalue()
 
     # --- INSERT DUPLICATE ---
     insert_hall_ticket(page, student["hall_ticket"], DUPLICATE_HALL_TICKET_POSITIONS, fontsize=12)
@@ -391,7 +399,7 @@ def fill_page_3(page, data, photo_source: Union[str, bytes]):
     for subject, (x, y) in zip(subjects, DUPLICATE_SUBJECT_POSITIONS):
         insert_fitted_text(page, subject["name"], x, y, page.rect.width - 24 - x, fontsize=11)
 
-    page.insert_image(rect_dup, stream=photo_png_bytes)
+    page.insert_image(rect_dup, stream=duplicate_photo_png_bytes, keep_proportion=False)
 
     # --- INSERT ORIGINAL ---
     insert_hall_ticket(page, student["hall_ticket"], ORIGINAL_HALL_TICKET_POSITIONS, fontsize=12)
@@ -406,7 +414,20 @@ def fill_page_3(page, data, photo_source: Union[str, bytes]):
     for subject, (x, y) in zip(subjects, ORIGINAL_SUBJECT_POSITIONS):
         insert_fitted_text(page, subject["name"], x, y, page.rect.width - 24 - x, fontsize=11)
 
-    page.insert_image(rect_orig, stream=photo_png_bytes)
+    original_target_width = max(1, int(rect_orig.width * SCALE))
+    original_target_height = max(1, int(rect_orig.height * SCALE))
+    original_image = prepare_photo(
+        photo_source,
+        original_target_width,
+        original_target_height,
+    )
+    original_image_buffer = BytesIO()
+    original_image.save(original_image_buffer, format="PNG")
+    page.insert_image(
+        rect_orig,
+        stream=original_image_buffer.getvalue(),
+        keep_proportion=False,
+    )
 
 
 # ---------------------------------------------------------

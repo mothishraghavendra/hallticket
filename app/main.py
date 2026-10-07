@@ -29,6 +29,8 @@ from __future__ import annotations
 
 import json
 import logging
+import time
+from uuid import uuid4
 from contextlib import asynccontextmanager
 from io import BytesIO
 from pathlib import Path
@@ -41,7 +43,7 @@ from fastapi.templating import Jinja2Templates
 from PIL import Image
 
 from app.models import ErrorResponse, HallTicketRequest, HealthResponse
-from app.services import bg_remover, pdf_generator
+from app.services import bg_remover, name_registry, pdf_generator
 
 # =========================================================
 # LOGGING
@@ -63,18 +65,22 @@ async def lifespan(app: FastAPI):
     runtime graph and thread pools are fully compiled and warm before
     any user request arrives.
     """
-    logger.info("Warming up rembg ONNX session …")
+    logger.info("startup.warmup.started component=background_removal")
+    started_at = time.perf_counter()
     try:
         dummy_buf = BytesIO()
         Image.new("RGB", (32, 32), color="white").save(dummy_buf, format="PNG")
         await bg_remover.remove_background(dummy_buf.getvalue())
-        logger.info("rembg ONNX session warmed up successfully.")
-    except Exception as exc:
-        logger.warning("Non-fatal warning during model warm-up: %s", exc)
+        logger.info(
+            "startup.warmup.completed component=background_removal duration_ms=%.1f",
+            (time.perf_counter() - started_at) * 1000,
+        )
+    except Exception:
+        logger.exception("startup.warmup.failed component=background_removal")
 
     yield
 
-    logger.info("Shutting down Hall Ticket Generator service.")
+    logger.info("shutdown.completed service=hall_ticket_generator")
 
 
 # =========================================================
@@ -120,6 +126,43 @@ app.mount(
 )
 
 templates = Jinja2Templates(directory=str(_BASE / "templates"))
+
+
+@app.middleware("http")
+async def log_http_requests(request: Request, call_next):
+    request_id = uuid4().hex
+    request.state.request_id = request_id
+    started_at = time.perf_counter()
+    logger.info(
+        "request.started request_id=%s method=%s path=%s",
+        request_id,
+        request.method,
+        request.url.path,
+    )
+
+    try:
+        response = await call_next(request)
+    except Exception:
+        logger.exception(
+            "request.failed request_id=%s method=%s path=%s duration_ms=%.1f",
+            request_id,
+            request.method,
+            request.url.path,
+            (time.perf_counter() - started_at) * 1000,
+        )
+        raise
+
+    duration_ms = (time.perf_counter() - started_at) * 1000
+    response.headers["X-Request-ID"] = request_id
+    logger.info(
+        "request.completed request_id=%s method=%s path=%s status_code=%d duration_ms=%.1f",
+        request_id,
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration_ms,
+    )
+    return response
 
 
 # =========================================================
@@ -179,6 +222,7 @@ async def health() -> HealthResponse:
     },
 )
 async def generate_hall_ticket(
+    request: Request,
     data: str = Form(
         ...,
         description="JSON string matching the HallTicketRequest schema.",
@@ -197,6 +241,7 @@ async def generate_hall_ticket(
     4. **Generate PDF** asynchronously in-memory using PyMuPDF.
     5. **Stream deflated PDF** with appropriate download and CORS headers.
     """
+    request_id = request.state.request_id
 
     # ----------------------------------------------------------
     # 1. Parse & validate JSON payload
@@ -205,31 +250,56 @@ async def generate_hall_ticket(
         raw = json.loads(data)
         request_data = HallTicketRequest.model_validate(raw)
     except json.JSONDecodeError as exc:
+        logger.warning("payload.rejected request_id=%s reason=invalid_json", request_id)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid JSON in 'data' field: {exc}",
         )
     except Exception as exc:
+        logger.warning("payload.rejected request_id=%s reason=schema_validation", request_id)
         raise HTTPException(
             status_code=422,
             detail=str(exc),
         )
+    logger.info(
+        "payload.validated request_id=%s subject_count=%d",
+        request_id,
+        len(request_data.subjects),
+    )
 
     # ----------------------------------------------------------
     # 2. Read & validate uploaded photo
     # ----------------------------------------------------------
-    MAX_PHOTO_BYTES = 10 * 1024 * 1024  # 10 MB
-    photo_bytes = await photo.read()
+    max_photo_bytes = 10 * 1024 * 1024
+    content_length = request.headers.get("content-length")
+    if content_length and content_length.isdigit() and int(content_length) > max_photo_bytes + 1024 * 1024:
+        logger.warning(
+            "upload.rejected request_id=%s reason=content_length_limit content_length=%s",
+            request_id,
+            content_length,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Upload exceeds the maximum request size.",
+        )
+
+    photo_bytes = await photo.read(max_photo_bytes + 1)
 
     if len(photo_bytes) == 0:
+        logger.warning("upload.rejected request_id=%s reason=empty_file", request_id)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Photo file is empty. Please upload a valid image.",
         )
 
-    if len(photo_bytes) > MAX_PHOTO_BYTES:
+    if len(photo_bytes) > max_photo_bytes:
+        logger.warning(
+            "upload.rejected request_id=%s reason=photo_size_limit size_bytes=%d",
+            request_id,
+            len(photo_bytes),
+        )
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail="Photo exceeds the 10 MB size limit.",
         )
 
@@ -238,58 +308,78 @@ async def generate_hall_ticket(
         with Image.open(BytesIO(photo_bytes)) as test_img:
             test_img.verify()
     except Exception:
+        logger.warning(
+            "upload.rejected request_id=%s reason=invalid_image size_bytes=%d",
+            request_id,
+            len(photo_bytes),
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="The uploaded file is not a valid or readable image. Accepted formats: JPEG, PNG, WebP.",
         )
 
     logger.info(
-        "Request received | student=%s | hall_ticket=%s | photo_size=%d bytes",
-        request_data.student.name,
-        request_data.student.hall_ticket,
+        "generation.accepted request_id=%s photo_size_bytes=%d subject_count=%d",
+        request_id,
         len(photo_bytes),
+        len(request_data.subjects),
     )
 
     # ----------------------------------------------------------
     # 3. Remove background — async, awaited fully
     # ----------------------------------------------------------
-    logger.info("Removing background …")
+    stage_started_at = time.perf_counter()
+    logger.info("background_removal.started request_id=%s", request_id)
     try:
         no_bg_bytes: bytes = await bg_remover.remove_background(photo_bytes)
     except bg_remover.ImageDimensionsError as exc:
+        logger.warning("background_removal.rejected request_id=%s reason=image_dimensions", request_id)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         )
     except Exception as exc:
-        logger.exception("Background removal failed")
+        logger.exception("background_removal.failed request_id=%s", request_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Background removal failed: {exc}",
         )
-    logger.info("Background removed successfully (%d bytes PNG).", len(no_bg_bytes))
+    logger.info(
+        "background_removal.completed request_id=%s output_size_bytes=%d duration_ms=%.1f",
+        request_id,
+        len(no_bg_bytes),
+        (time.perf_counter() - stage_started_at) * 1000,
+    )
 
     # ----------------------------------------------------------
     # 4. Generate PDF — async, 100% in-memory
     # ----------------------------------------------------------
-    logger.info("Generating PDF …")
+    stage_started_at = time.perf_counter()
+    logger.info("pdf_generation.started request_id=%s", request_id)
     try:
         pdf_bytes: bytes = await pdf_generator.generate_pdf_bytes(
             data=request_data.model_dump(),
             photo_bytes=no_bg_bytes,
         )
     except Exception as exc:
-        logger.exception("PDF generation failed")
+        logger.exception("pdf_generation.failed request_id=%s", request_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"PDF generation failed: {exc}",
         )
 
     logger.info(
-        "PDF generated successfully | size=%d bytes | student=%s",
+        "pdf_generation.completed request_id=%s output_size_bytes=%d duration_ms=%.1f",
+        request_id,
         len(pdf_bytes),
-        request_data.student.name,
+        (time.perf_counter() - stage_started_at) * 1000,
     )
+
+    try:
+        await name_registry.record_generated_name(request_data.student.name)
+        logger.info("generation_name.recorded request_id=%s", request_id)
+    except Exception:
+        logger.exception("generation_name.record_failed request_id=%s", request_id)
 
     # ----------------------------------------------------------
     # 5. Stream PDF back to client
