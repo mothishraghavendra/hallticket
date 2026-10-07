@@ -1,0 +1,447 @@
+{% extends "base.html" %}
+
+{% block title %}Generate Hall Ticket — Examination System{% endblock %}
+
+{% block content %}
+
+{# ── PAGE HERO ── #}
+<div class="form-hero">
+  <div class="cds-grid">
+    <p class="form-hero__eyebrow">Examination Management System</p>
+    <h1 class="form-hero__title">Generate your <strong>Hall Ticket</strong></h1>
+    <p class="form-hero__desc">
+      Fill in your details, upload your photo — the system will remove the background
+      automatically and produce a ready-to-print PDF.
+    </p>
+  </div>
+</div>
+
+{# ── FORM BODY ── #}
+<div class="form-body">
+<div class="cds-grid">
+
+  {# ── INLINE NOTIFICATION (populated by JS) ── #}
+  <div id="flash-area">
+    <div id="notify-error" class="cds-notification cds-notification--error" role="alert" aria-live="assertive">
+      <svg class="cds-notification__icon" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+        <path d="M16 2C8.3 2 2 8.3 2 16s6.3 14 14 14 14-6.3 14-14S23.7 2 16 2zm-1.1 6h2.2v11h-2.2V8zM16 25c-.8 0-1.5-.7-1.5-1.5S15.2 22 16 22s1.5.7 1.5 1.5S16.8 25 16 25z"/>
+      </svg>
+      <div class="cds-notification__body">
+        <p class="cds-notification__title" id="notify-error-title">Error</p>
+        <p id="notify-error-body"></p>
+      </div>
+    </div>
+
+    <div id="notify-success" class="cds-notification cds-notification--success" role="status" aria-live="polite">
+      <svg class="cds-notification__icon" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+        <path d="M16 2C8.3 2 2 8.3 2 16s6.3 14 14 14 14-6.3 14-14S23.7 2 16 2zM14 21.4l-5-5 1.6-1.6 3.4 3.4 7.4-7.4 1.6 1.6-9 9z"/>
+      </svg>
+      <div class="cds-notification__body">
+        <p class="cds-notification__title">Success</p>
+        <p id="notify-success-body"></p>
+      </div>
+    </div>
+  </div>
+
+  {# ════════════════════════════════════════════════
+     FORM
+  ════════════════════════════════════════════════ #}
+  <form id="hall-ticket-form" novalidate>
+
+    {# ── SECTION 1: STUDENT INFORMATION ── #}
+    <section class="cds-section" aria-labelledby="sec1-title">
+      <div class="cds-section__header">
+        <span class="cds-section__step" aria-hidden="true">1</span>
+        <h2 class="cds-section__title" id="sec1-title">Student Information</h2>
+      </div>
+      <div class="cds-section__body">
+        <div class="cds-form-grid cds-form-grid--2">
+
+          {# Full Name #}
+          <div class="cds-form-item" id="fi-student-name">
+            <label for="student_name" class="cds-label">
+              Full name <span class="cds-label__req" aria-label="required">*</span>
+            </label>
+            <input id="student_name"
+                   name="student_name"
+                   type="text"
+                   class="cds-input"
+                   placeholder="e.g. K Mothish Raghavendra"
+                   autocomplete="name"
+                   maxlength="120"
+                   required />
+            <span class="cds-helper">As it should appear on the hall ticket.</span>
+            <span class="cds-error-text" id="err-student-name">Full name is required.</span>
+          </div>
+
+          {# Father's Name #}
+          <div class="cds-form-item" id="fi-father-name">
+            <label for="father_name" class="cds-label">
+              Father's name <span class="cds-label__req" aria-label="required">*</span>
+            </label>
+            <input id="father_name"
+                   name="father_name"
+                   type="text"
+                   class="cds-input"
+                   placeholder="e.g. K Padmanabha Naidu"
+                   maxlength="120"
+                   required />
+            <span class="cds-error-text" id="err-father-name">Father's name is required.</span>
+          </div>
+
+          {# Hall Ticket Number #}
+          <div class="cds-form-item" id="fi-hall-ticket">
+            <label for="hall_ticket" class="cds-label">
+              Hall ticket number <span class="cds-label__req" aria-label="required">*</span>
+            </label>
+            <input id="hall_ticket"
+                   name="hall_ticket"
+                   type="text"
+                   class="cds-input cds-input--mono"
+                   placeholder="24005A0512"
+                   maxlength="10"
+                   minlength="1"
+                   pattern="[A-Za-z0-9]{1,10}"
+                   required />
+            <span class="cds-helper">Up to 10 alphanumeric characters. Each fills one box.</span>
+            <span class="cds-error-text" id="err-hall-ticket">Enter a valid 1–10 character hall ticket number.</span>
+          </div>
+
+          {# Exam Type #}
+          <div class="cds-form-item" id="fi-student-type">
+            <label for="student_type" class="cds-label">
+              Exam type <span class="cds-label__req" aria-label="required">*</span>
+            </label>
+            <div class="cds-select-wrap">
+              <select id="student_type" name="student_type" class="cds-select" required>
+                <option value="" disabled selected>Select exam type</option>
+                <option value="Regular">Regular</option>
+                <option value="Supplementary">Supplementary</option>
+              </select>
+            </div>
+            <span class="cds-error-text" id="err-student-type">Please select an exam type.</span>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    {# ── SECTION 2: ACADEMIC INFORMATION ── #}
+    <section class="cds-section" aria-labelledby="sec2-title">
+      <div class="cds-section__header">
+        <span class="cds-section__step" aria-hidden="true">2</span>
+        <h2 class="cds-section__title" id="sec2-title">Academic Information</h2>
+      </div>
+      <div class="cds-section__body">
+        <div class="cds-form-grid cds-form-grid--2">
+
+          {# Branch — now a select with 6 options #}
+          <div class="cds-form-item cds-col-full" id="fi-branch">
+            <label for="branch" class="cds-label">
+              Branch / programme <span class="cds-label__req" aria-label="required">*</span>
+            </label>
+            <div class="cds-select-wrap">
+              <select id="branch" name="branch" class="cds-select" required>
+                <option value="" disabled selected>Select your branch</option>
+                <option value="Computer Science and Engineering">
+                  Computer Science and Engineering
+                </option>
+                <option value="Electronics and Communication Engineering">
+                  Electronics and Communication Engineering
+                </option>
+                <option value="Electrical and Electronics Engineering">
+                  Electrical and Electronics Engineering
+                </option>
+                <option value="Mechanical Engineering">
+                  Mechanical Engineering
+                </option>
+                <option value="Civil Engineering">
+                  Civil Engineering
+                </option>
+                <option value="Chemical Engineering">
+                  Chemical Engineering
+                </option>
+              </select>
+            </div>
+            <span class="cds-error-text" id="err-branch">Please select a branch.</span>
+          </div>
+
+          {# Year #}
+          <div class="cds-form-item" id="fi-year">
+            <label for="year" class="cds-label">
+              Year <span class="cds-label__req" aria-label="required">*</span>
+            </label>
+            <div class="cds-select-wrap">
+              <select id="year" name="year" class="cds-select" required>
+                <option value="" disabled selected>Select year</option>
+                <option value="I">I — First Year</option>
+                <option value="II">II — Second Year</option>
+                <option value="III">III — Third Year</option>
+                <option value="IV">IV — Fourth Year</option>
+              </select>
+            </div>
+            <span class="cds-error-text" id="err-year">Please select a year.</span>
+          </div>
+
+          {# Semester #}
+          <div class="cds-form-item" id="fi-semester">
+            <label for="semester" class="cds-label">
+              Semester <span class="cds-label__req" aria-label="required">*</span>
+            </label>
+            <div class="cds-select-wrap">
+              <select id="semester" name="semester" class="cds-select" required>
+                <option value="" disabled selected>Select semester</option>
+                <option value="I">I — First Semester</option>
+                <option value="II">II — Second Semester</option>
+              </select>
+            </div>
+            <span class="cds-error-text" id="err-semester">Please select a semester.</span>
+          </div>
+
+          <div class="cds-form-item" id="fi-regulation">
+            <label for="regulation" class="cds-label">
+              Regulation <span class="cds-label__req" aria-label="required">*</span>
+            </label>
+            <div class="cds-select-wrap">
+              <select id="regulation" name="regulation" class="cds-select" required disabled>
+                <option value="" selected>Select branch, year, and semester first</option>
+              </select>
+            </div>
+            <span class="cds-error-text" id="err-regulation">Please select a regulation.</span>
+          </div>
+
+          {# Examination Month / Year — full width #}
+          <div class="cds-form-item cds-col-full" id="fi-month-year">
+            <label for="month_year" class="cds-label">
+              Examination month &amp; year <span class="cds-label__req" aria-label="required">*</span>
+            </label>
+            <input id="month_year"
+                   name="month_year"
+                   type="text"
+                   class="cds-input"
+                   placeholder="e.g. October 2026"
+                   maxlength="30"
+                   style="max-width: 320px;"
+                   required />
+            <span class="cds-helper">Enter as: Month YYYY (e.g. November 2026)</span>
+            <span class="cds-error-text" id="err-month-year">Examination month and year is required.</span>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    {# ── SECTION 3: SUBJECTS ── #}
+    <section class="cds-section" aria-labelledby="sec3-title">
+      <div class="cds-section__header">
+        <span class="cds-section__step" aria-hidden="true">3</span>
+        <h2 class="cds-section__title" id="sec3-title">Subjects</h2>
+        <span class="cds-section__subtitle">1–7 subjects</span>
+      </div>
+      <div class="cds-section__body">
+
+        <div class="subjects-list" id="subjects-list" role="list">
+          {# First subject row — rendered server-side #}
+          <div class="subject-row" data-index="1" role="listitem">
+            <span class="subject-row__num" aria-hidden="true">1</span>
+            <input type="text"
+                   class="cds-input subject-name"
+                   placeholder="Subject 1 name"
+                   aria-label="Subject 1 name"
+                   maxlength="120" />
+            <button type="button"
+                    class="subject-row__remove hidden"
+                    title="Remove subject 1"
+                    aria-label="Remove subject 1">
+              <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+                <path d="M24 9.4L22.6 8 16 14.6 9.4 8 8 9.4 14.6 16 8 22.6 9.4 24 16 17.4 22.6 24 24 22.6 17.4 16 24 9.4z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <p class="subjects-status" id="subjects-status" aria-live="polite">
+          Select a branch, year, and semester to load saved subjects.
+        </p>
+
+        <button type="button" id="add-subject-btn" class="cds-btn-ghost">
+          <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+            <path d="M17 15V8h-2v7H8v2h7v7h2v-7h7v-2h-7z"/>
+          </svg>
+          Add subject
+        </button>
+
+        <p class="subjects-error" id="subject-error" role="alert">
+          At least one subject is required.
+        </p>
+
+      </div>
+    </section>
+
+    {# ── SECTION 4: CERTIFICATE DETAILS ── #}
+    <section class="cds-section" aria-labelledby="sec4-title">
+      <div class="cds-section__header">
+        <span class="cds-section__step" aria-hidden="true">4</span>
+        <h2 class="cds-section__title" id="sec4-title">Certificate Details</h2>
+      </div>
+      <div class="cds-section__body">
+        <div class="cds-form-grid cds-form-grid--2">
+
+          <div class="cds-form-item" id="fi-cert-name">
+            <label for="cert_name" class="cds-label">
+              Name on certificate <span class="cds-label__req" aria-label="required">*</span>
+            </label>
+            <input id="cert_name"
+                   name="cert_name"
+                   type="text"
+                   class="cds-input"
+                   placeholder="e.g. K Mothish Raghavendra"
+                   maxlength="120"
+                   required />
+            <span class="cds-helper">Auto-filled from student name. Edit if different.</span>
+            <span class="cds-error-text" id="err-cert-name">Certificate name is required.</span>
+          </div>
+
+          <div class="cds-form-item" id="fi-cert-date">
+            <label for="cert_date" class="cds-label">
+              Academic year <span class="cds-label__req" aria-label="required">*</span>
+            </label>
+            <input id="cert_date"
+                   name="cert_date"
+                   type="text"
+                   class="cds-input"
+                   placeholder="e.g. 2026-2027"
+                   maxlength="20"
+                   required />
+            <span class="cds-helper">Format: YYYY-YYYY</span>
+            <span class="cds-error-text" id="err-cert-date">Academic year is required.</span>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    {# ── SECTION 5: PHOTOGRAPH ── #}
+    <section class="cds-section" aria-labelledby="sec5-title">
+      <div class="cds-section__header">
+        <span class="cds-section__step" aria-hidden="true">5</span>
+        <h2 class="cds-section__title" id="sec5-title">Student Photograph</h2>
+      </div>
+      <div class="cds-section__body">
+
+        <div class="cds-file-uploader">
+
+          {# Drop zone / click area #}
+          <label id="drop-zone" class="cds-file-drop" for="photo"
+                 aria-describedby="photo-drop-hint photo-error">
+            <input id="photo"
+                   name="photo"
+                   type="file"
+                   accept="image/jpeg,image/jpg,image/png,image/webp"
+                   aria-label="Upload student photograph"
+                   required />
+
+            <div id="drop-placeholder">
+              <svg class="cds-file-drop__icon" viewBox="0 0 32 32" fill="none"
+                   stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M16 20V8M10 14l6-6 6 6M6 26h20"/>
+              </svg>
+              <span class="cds-file-drop__label">Drag file here or click to upload</span>
+              <span class="cds-file-drop__hint" id="photo-drop-hint">
+                JPEG · PNG · WebP &nbsp;·&nbsp; Max 10 MB
+              </span>
+            </div>
+
+            <img id="photo-preview"
+                 class="cds-file-drop__preview-img"
+                 alt="Uploaded photo preview" />
+          </label>
+
+          {# Info panel #}
+          <div class="cds-file-info">
+            <p class="cds-file-info__title">Photo requirements</p>
+            <ul class="cds-file-info__list" aria-label="Photo requirements">
+              <li class="cds-file-info__item">
+                <span class="cds-file-info__bullet" aria-hidden="true"></span>
+                Passport-size or clear face photograph
+              </li>
+              <li class="cds-file-info__item">
+                <span class="cds-file-info__bullet" aria-hidden="true"></span>
+                Background is <strong>removed automatically</strong> (AI-powered)
+              </li>
+              <li class="cds-file-info__item">
+                <span class="cds-file-info__bullet" aria-hidden="true"></span>
+                Accepted: JPEG, PNG, WebP
+              </li>
+              <li class="cds-file-info__item">
+                <span class="cds-file-info__bullet" aria-hidden="true"></span>
+                Maximum size: 10 MB
+              </li>
+              <li class="cds-file-info__item">
+                <span class="cds-file-info__bullet" aria-hidden="true"></span>
+                First request may take longer while the model warms up
+              </li>
+            </ul>
+
+            <div class="cds-file-name" id="photo-name" aria-live="polite">
+              <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+                <path d="M16 2C8.3 2 2 8.3 2 16s6.3 14 14 14 14-6.3 14-14S23.7 2 16 2zM14 21.4l-5-5 1.6-1.6 3.4 3.4 7.4-7.4 1.6 1.6-9 9z"/>
+              </svg>
+              <span id="photo-name-text"></span>
+            </div>
+          </div>
+
+        </div>
+
+        <p class="photo-error" id="photo-error" role="alert">
+          A student photograph is required.
+        </p>
+
+      </div>
+    </section>
+
+    {# ── SUBMIT ── #}
+    <div class="cds-submit-zone">
+      <button type="submit" id="submit-btn" class="cds-btn-primary">
+        {# Normal icon #}
+        <svg id="submit-icon" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+          <path d="M16 2C8.3 2 2 8.3 2 16s6.3 14 14 14 14-6.3 14-14S23.7 2 16 2zm-2 19.6l-5.6-5.6 1.4-1.4 4.2 4.2 8.2-8.2 1.4 1.4L14 21.6z"/>
+        </svg>
+        {# Spinner (hidden until loading) #}
+        <svg id="submit-spinner" class="cds-spinner" viewBox="0 0 32 32"
+             fill="none" style="display:none;" aria-hidden="true">
+          <circle cx="16" cy="16" r="14" stroke="rgba(255,255,255,0.3)" stroke-width="3"/>
+          <path d="M30 16c0-7.7-6.3-14-14-14" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+        <span id="submit-label">Generate hall ticket</span>
+      </button>
+
+      <p class="cds-submit-note">
+        The first request may take longer while the model warms up.<br>
+        Later requests reuse the initialized model.
+      </p>
+    </div>
+
+  </form>
+
+</div>
+</div>
+
+{# ── PROGRESS OVERLAY ── #}
+<div id="progress-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="cds-modal">
+    <h2 class="cds-modal__title" id="modal-title">Generating hall ticket…</h2>
+    <p class="cds-modal__step" id="progress-label">Starting…</p>
+    <div class="cds-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress-track">
+      <div class="cds-progress-fill" id="progress-bar"></div>
+    </div>
+    <p class="cds-modal__sub" id="progress-sub">Preparing your request…</p>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts_extra %}
+<script src="/static/js/form.js"></script>
+{% endblock %}

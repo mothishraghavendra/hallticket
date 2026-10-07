@@ -1,0 +1,34 @@
+{
+  "curricula": [
+    {
+      "branch": "Computer Science and Engineering",
+      "year": "IV",
+      "semester": "I",
+      "regulation": "R23",
+      "subjects": [
+        "Deep Learning",
+        "Management Science",
+        "Software Architecture & Design Patterns",
+        "Agile Methodologies",
+        "Employability Skills(OE-3)",
+        "Literary Vibes(OE-4)",
+        "Prompt Engineering"
+      ]
+    },
+    {
+      "branch": "Chemical Engineering",
+      "year": "IV",
+      "semester": "I",
+      "regulation": "R23",
+      "subjects": [
+        "Transport Phenomena",
+        "Management Science",
+        "Industrial Safety and Hazard Management",
+        "Numerical Methods in Chemical Engineering",
+        "Smart Grid Technologies (OE - 3)",
+        "Solid Waste Management (OE - 4)",
+        "Applications of AI/ML in Chemical Engineering"
+      ]
+    }
+  ]
+}

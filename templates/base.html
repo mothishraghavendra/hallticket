@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Hall Ticket Generator{% endblock %}</title>
+
+  <!-- IBM Plex Sans — IBM's open-source typeface (SIL OFL) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/static/css/style.css" />
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       UTILITY BAR  (hides on mobile < 672px)
+  ═══════════════════════════════════════════ -->
+  <div class="util-bar" aria-hidden="true">
+    <div class="util-bar__inner">
+      <span class="util-bar__item">Examination Management System</span>
+      <span class="util-bar__sep" aria-hidden="true">|</span>
+      <a href="/docs" class="util-bar__link" target="_blank" rel="noopener">API Documentation</a>
+      <span class="util-bar__sep" aria-hidden="true">|</span>
+      <a href="/health" class="util-bar__link" target="_blank" rel="noopener">Service Status</a>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       TOP NAV  — Carbon 48px sticky bar
+  ═══════════════════════════════════════════ -->
+  <header class="top-nav" role="banner">
+    <div class="top-nav__inner">
+
+      <!-- Logo wordmark -->
+      <a href="/" class="top-nav__brand" aria-label="Hall Ticket Generator — home">
+        <svg class="top-nav__ibm-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+          <!-- Simplified IBM-style 8-bar mark -->
+          <rect x="0"  y="4"  width="32" height="3.2" fill="currentColor"/>
+          <rect x="6"  y="10" width="20" height="3.2" fill="currentColor"/>
+          <rect x="6"  y="16" width="20" height="3.2" fill="currentColor"/>
+          <rect x="0"  y="22" width="32" height="3.2" fill="currentColor"/>
+          <rect x="6"  y="28" width="20" height="3.2" fill="currentColor"/>
+        </svg>
+        <span class="top-nav__brand-text">Hall Ticket&nbsp;<strong>Generator</strong></span>
+      </a>
+
+      <!-- Nav links (desktop) -->
+      <nav class="top-nav__links" aria-label="Site navigation">
+        <a href="/" class="top-nav__link top-nav__link--active" aria-current="page">Generate</a>
+        <a href="/docs" class="top-nav__link" target="_blank" rel="noopener">API Docs</a>
+        <a href="/health" class="top-nav__link" target="_blank" rel="noopener">Status</a>
+      </nav>
+
+      <!-- Mobile hamburger -->
+      <button class="top-nav__hamburger" id="nav-toggle"
+              aria-label="Open navigation menu" aria-expanded="false" aria-controls="mobile-nav">
+        <span class="hamburger-bar"></span>
+        <span class="hamburger-bar"></span>
+        <span class="hamburger-bar"></span>
+      </button>
+
+    </div>
+
+    <!-- Mobile nav drawer -->
+    <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile navigation" hidden>
+      <a href="/" class="mobile-nav__link mobile-nav__link--active" aria-current="page">Generate</a>
+      <a href="/docs" class="mobile-nav__link" target="_blank" rel="noopener">API Docs</a>
+      <a href="/health" class="mobile-nav__link" target="_blank" rel="noopener">Status</a>
+    </nav>
+  </header>
+
+  <!-- ═══════════════════════════════════════════
+       PAGE CONTENT
+  ═══════════════════════════════════════════ -->
+  <main id="main-content" class="page-main" role="main">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ═══════════════════════════════════════════
+       FOOTER  — Carbon charcoal inverse surface
+  ═══════════════════════════════════════════ -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="site-footer__inner">
+      <div class="site-footer__brand">
+        <svg class="site-footer__mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+          <rect x="0"  y="4"  width="32" height="3.2" fill="currentColor"/>
+          <rect x="6"  y="10" width="20" height="3.2" fill="currentColor"/>
+          <rect x="6"  y="16" width="20" height="3.2" fill="currentColor"/>
+          <rect x="0"  y="22" width="32" height="3.2" fill="currentColor"/>
+          <rect x="6"  y="28" width="20" height="3.2" fill="currentColor"/>
+        </svg>
+        <span class="site-footer__brand-name">Hall Ticket Generator</span>
+      </div>
+
+      <div class="site-footer__cols">
+        <div class="site-footer__col">
+          <p class="site-footer__col-title">Application</p>
+          <ul class="site-footer__links">
+            <li><a href="/" class="site-footer__link">Generate Hall Ticket</a></li>
+            <li><a href="/health" class="site-footer__link" target="_blank">Service Status</a></li>
+          </ul>
+        </div>
+        <div class="site-footer__col">
+          <p class="site-footer__col-title">Developer</p>
+          <ul class="site-footer__links">
+            <li><a href="/docs" class="site-footer__link" target="_blank">API Reference (Swagger)</a></li>
+            <li><a href="/redoc" class="site-footer__link" target="_blank">ReDoc</a></li>
+          </ul>
+        </div>
+        <div class="site-footer__col">
+          <p class="site-footer__col-title">Technology</p>
+          <ul class="site-footer__links">
+            <li><span class="site-footer__link--static">FastAPI + Python</span></li>
+            <li><span class="site-footer__link--static">rembg · pymupdf</span></li>
+            <li><span class="site-footer__link--static">Carbon Design System</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="site-footer__bottom">
+        <p class="site-footer__legal">
+          All coordinates preserved from <code>template.pdf</code>. &nbsp;
+          Built with IBM Carbon Design principles.
+        </p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Mobile nav toggle script (inline, tiny) -->
+  <script>
+    (function () {
+      const btn = document.getElementById('nav-toggle');
+      const nav = document.getElementById('mobile-nav');
+      btn.addEventListener('click', function () {
+        const open = nav.hasAttribute('hidden');
+        if (open) { nav.removeAttribute('hidden'); btn.setAttribute('aria-expanded', 'true'); }
+        else       { nav.setAttribute('hidden', ''); btn.setAttribute('aria-expanded', 'false'); }
+      });
+    })();
+  </script>
+
+  {% block scripts_extra %}{% endblock %}
+</body>
+</html>
