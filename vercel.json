@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "app/main.py": {
+      "maxDuration": 60,
+      "includeFiles": "{template.pdf,templates/**,static/**}",
+      "excludeFiles": "{main.py,bg_remover.py,index.json,imgs/**,runtime-data/**,output/**,temp/**}"
+    }
+  }
+}

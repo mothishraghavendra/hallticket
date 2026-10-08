@@ -16,7 +16,7 @@ OUTPUT_PDF = "output/updated_hallticket.pdf"
 
 JSON_FILE = "index.json"
 
-IMAGE_PATH = "imgs/profile_no_bg.png"
+IMAGE_PATH = "imgs/me.jpg"
 
 
 # =========================================================
@@ -442,6 +442,14 @@ def prepare_photo(
             0.5,
             0.35
         )
+    )
+
+    # Add a tiny bottom padding so the inserted photo sits
+    # slightly away from the lower edge of the PDF box.
+    image = ImageOps.expand(
+        image,
+        border=(0, 0, 0, 1),
+        fill=(255, 255, 255, 0)
     )
 
 

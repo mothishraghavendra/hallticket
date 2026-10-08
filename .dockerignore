@@ -13,5 +13,4 @@ __pycache__
 output
 temp
 imgs
-runtime-data/*.json
-!runtime-data/generated_names.json
+runtime-data

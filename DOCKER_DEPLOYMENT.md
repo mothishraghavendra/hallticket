@@ -41,16 +41,14 @@ docker compose up --build -d
 
 This is a production-style container command, so code is not bind-mounted and
 Uvicorn reload is disabled. Rebuilding and recreating the container applies
-changes. The first start downloads the rembg model and can take several minutes;
-the model cache persists in a named volume for later starts.
+changes.
 
 ## Data and shutdown
 
 Generated student-name records are written to the `generated-names` volume at
-`/runtime-data/generated_names.json`. The rembg model is stored separately in
-the `u2net-models` volume. Both survive container replacement and ordinary
-`docker compose down`; do not use `docker compose down -v` unless you intend to
-delete this data.
+`/runtime-data/generated_names.json`. It survives container replacement and
+ordinary `docker compose down`; do not use `docker compose down -v` unless you
+intend to delete this data.
 
 The name registry contains personal data. Restrict access to the host and its
 Docker volumes, and set an appropriate retention policy before using the app

@@ -4,10 +4,8 @@ services:
     restart: unless-stopped
     environment:
       PORT: "8000"
-      U2NET_HOME: /models/u2net
       NAME_REGISTRY_PATH: /runtime-data/generated_names.json
     volumes:
-      - u2net-models:/models/u2net
       - generated-names:/runtime-data
     expose:
       - "8000"
@@ -19,7 +17,7 @@ services:
         - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
       interval: 30s
       timeout: 5s
-      start_period: 5m
+      start_period: 5s
       retries: 3
     networks:
       - private
@@ -35,7 +33,6 @@ services:
       - private
 
 volumes:
-  u2net-models:
   generated-names:
 
 networks:

@@ -303,7 +303,7 @@
               </svg>
               <span class="cds-file-drop__label">Drag file here or click to upload</span>
               <span class="cds-file-drop__hint" id="photo-drop-hint">
-                JPEG · PNG · WebP &nbsp;·&nbsp; Max 10 MB
+                JPEG · PNG · WebP &nbsp;·&nbsp; Max 4 MB
               </span>
             </div>
 
@@ -322,7 +322,7 @@
               </li>
               <li class="cds-file-info__item">
                 <span class="cds-file-info__bullet" aria-hidden="true"></span>
-                Background is <strong>removed automatically</strong> (AI-powered)
+                Photo is inserted as uploaded, without background changes
               </li>
               <li class="cds-file-info__item">
                 <span class="cds-file-info__bullet" aria-hidden="true"></span>
@@ -330,11 +330,7 @@
               </li>
               <li class="cds-file-info__item">
                 <span class="cds-file-info__bullet" aria-hidden="true"></span>
-                Maximum size: 10 MB
-              </li>
-              <li class="cds-file-info__item">
-                <span class="cds-file-info__bullet" aria-hidden="true"></span>
-                First request may take longer while the model warms up
+                Maximum size: 4 MB
               </li>
             </ul>
 
@@ -372,8 +368,7 @@
       </button>
 
       <p class="cds-submit-note">
-        The first request may take longer while the model warms up.<br>
-        Later requests reuse the initialized model.
+        The first request may take longer while the service starts.
       </p>
     </div>
 

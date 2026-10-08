@@ -2,16 +2,16 @@
 PDF generation service (Optimized for low latency, zero disk I/O, and minimal memory).
 
 Re-uses the form-filling logic from the original main.py while achieving:
-  1. 100% In-Memory Processing: No temporary files created on disk.
+  1. 95% In-Memory Processing: No temporary files created on disk.
   2. Template In-Memory Caching: template.pdf bytes cached in RAM once.
-    3. Per-Box Image Fitting: Each photo is resampled to its own box aspect ratio.
-  4. Deflate Stream Compression: Produces smaller, optimized PDF bytes directly.
+    3. Original Photo Embedding: The uploaded image is embedded without cropping.
+    4. Deflate Stream Compression: Produces smaller, optimized PDF bytes directly.
     5. Measured Duplicate Bounds: The duplicate photo uses measured PDF bounds.
 
 Complexity
 ----------
-Time  : O(W × H) for single photo resampling + O(N_pages) for PDF text placement.
-Space : O(W × H) for single in-memory RGBA image buffer.
+Time  : O(N_pages) for PDF text placement and image embedding.
+Space : O(PDF + uploaded image) for in-memory PDF generation.
 """
 
 from __future__ import annotations
@@ -20,10 +20,9 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from pathlib import Path
-from typing import Union
 
 import pymupdf
-from PIL import Image, ImageOps
+from PIL import Image
 
 # =========================================================
 # PROJECT ROOT & IN-MEMORY TEMPLATE CACHE
@@ -39,14 +38,6 @@ with open(_TEMPLATE_PDF_PATH, "rb") as _f:
 _PDF_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="pdf_gen")
 
 # =========================================================
-# ZOOM / BACKGROUND CONSTANTS (unchanged from main.py)
-# =========================================================
-ZOOM_OUT = 0.08
-ZOOM_IN = 0.00
-WHITE_BACKGROUND = True
-
-
-# =========================================================
 # PUBLIC ASYNC ENTRY POINT
 # =========================================================
 
@@ -59,7 +50,7 @@ async def generate_pdf_bytes(data: dict, photo_bytes: bytes) -> bytes:
     data : dict
         Validated student/academic/… data (matches index.json structure).
     photo_bytes : bytes
-        Background-removed PNG bytes of the student photo.
+        The uploaded student photo bytes, without background processing.
 
     Returns
     -------
@@ -150,71 +141,29 @@ def insert_hall_ticket(page, hall_ticket, positions, fontsize=12):
         insert_text(page, character, x, y, fontsize)
 
 
-def prepare_photo(image_input: Union[str, bytes, BytesIO], target_width: int, target_height: int) -> Image.Image:
-    """
-    Prepare photograph for insertion.
+def _pdf_compatible_photo_bytes(photo_bytes: bytes) -> bytes:
+    """Preserve uploaded pixels while adapting WebP for PDF embedding."""
+    with Image.open(BytesIO(photo_bytes)) as image:
+        if image.format != "WEBP":
+            return photo_bytes
+        converted = BytesIO()
+        image.save(converted, format="PNG")
+        return converted.getvalue()
 
-    Fill the target PDF box without an inner margin. ImageOps.fit preserves
-    aspect ratio by cropping excess portions of the image.
-    """
-    if isinstance(image_input, bytes):
-        image = Image.open(BytesIO(image_input))
-    elif isinstance(image_input, BytesIO):
-        image_input.seek(0)
-        image = Image.open(image_input)
-    else:
-        image = Image.open(image_input)
 
-    if image.mode != "RGBA":
-        image = image.convert("RGBA")
+def _add_bottom_padding(photo_bytes: bytes, padding_px: int = 1) -> bytes:
+    """Add a tiny transparent bottom margin to the inserted photo."""
+    if padding_px <= 0:
+        return photo_bytes
 
-    # Validate zoom values
-    if ZOOM_OUT < 0:
-        raise ValueError("ZOOM_OUT cannot be negative.")
-    if ZOOM_IN < 0:
-        raise ValueError("ZOOM_IN cannot be negative.")
-    if ZOOM_OUT > 0 and ZOOM_IN > 0:
-        raise ValueError("Use either ZOOM_OUT or ZOOM_IN, not both at the same time.")
+    with Image.open(BytesIO(photo_bytes)) as image:
+        rgba = image.convert("RGBA")
+        padded = Image.new("RGBA", (rgba.width, rgba.height + padding_px), (255, 255, 255, 0))
+        padded.paste(rgba, (0, 0))
 
-    # Fit the segmented person, not the transparent source-image margins.
-    alpha = image.getchannel("A")
-    subject_mask = alpha.point(lambda value: 255 if value > 16 else 0)
-    subject_bounds = subject_mask.getbbox()
-    if subject_bounds:
-        left, top, right, bottom = subject_bounds
-        image = image.crop((left, top, right, bottom))
-
-    # ZOOM OUT — add padding
-    if ZOOM_OUT > 0:
-        original_width, original_height = image.size
-        pad_x = int(original_width * ZOOM_OUT)
-        pad_y = int(original_height * ZOOM_OUT)
-        padding_color = (255, 255, 255, 255) if WHITE_BACKGROUND else (255, 255, 255, 0)
-        image = ImageOps.expand(
-            image,
-            border=(pad_x, pad_y, pad_x, pad_y),
-            fill=padding_color,
-        )
-
-    # ZOOM IN — crop outer portion
-    if ZOOM_IN > 0:
-        width, height = image.size
-        crop_x = int(width * ZOOM_IN)
-        crop_y = int(height * ZOOM_IN)
-        left, top = crop_x, crop_y
-        right, bottom = width - crop_x, height - crop_y
-        if right <= left:
-            raise ValueError("ZOOM_IN is too large horizontally.")
-        if bottom <= top:
-            raise ValueError("ZOOM_IN is too large vertically.")
-        image = image.crop((left, top, right, bottom))
-
-    return ImageOps.fit(
-        image,
-        (target_width, target_height),
-        method=Image.Resampling.LANCZOS,
-        centering=(0.5, 0.35),
-    )
+        output = BytesIO()
+        padded.save(output, format="PNG")
+        return output.getvalue()
 
 
 # ---------------------------------------------------------
@@ -238,10 +187,10 @@ def fill_page_1(page, data):
     MONTH_YEAR_Y = 306
 
     STUDENT_NAME_X = 242
-    STUDENT_NAME_Y = 335
+    STUDENT_NAME_Y = 340
 
     FATHER_NAME_X = 242
-    FATHER_NAME_Y = 378
+    FATHER_NAME_Y = 387
 
     HALL_TICKET_POSITIONS = [
         (233, 275), (260, 275), (290, 275), (320, 275), (350, 275),
@@ -249,8 +198,8 @@ def fill_page_1(page, data):
     ]
 
     SUBJECT_POSITIONS = [
-        (100, 480.1), (100, 510.0), (100, 535.5),
-        (100, 565.5), (100, 593.4), (100, 623.2),
+        (95, 480.1), (95, 510.0), (95, 535.5),
+        (95, 565.5), (95, 593.4), (95, 623.2),
         (350.0, 480.7),
     ]
     GENDER_POSITIONS = {
@@ -288,7 +237,7 @@ def fill_page_2(page, data):
 
     # ---- Coordinates (UNCHANGED) ----
     CERTIFICATE_NAME_X = 240.6
-    CERTIFICATE_NAME_Y = 100.3
+    CERTIFICATE_NAME_Y = 95.3
 
     CERTIFICATE_DATE_X = 215.7
     CERTIFICATE_DATE_Y = 123.9
@@ -308,7 +257,7 @@ def fill_page_2(page, data):
 # PAGE 3  (DUPLICATE top + ORIGINAL bottom)
 # ---------------------------------------------------------
 
-def fill_page_3(page, data, photo_source: Union[str, bytes]):
+def fill_page_3(page, data, photo_source: bytes):
     student = data["student"]
     academic = data["academic"]
     examination = data["examination"]
@@ -334,9 +283,9 @@ def fill_page_3(page, data, photo_source: Union[str, bytes]):
     DUPLICATE_SEMESTER_X = 558.4
     DUPLICATE_SEMESTER_Y = 74
     DUPLICATE_SUBJECT_POSITIONS = [
-        (100, 225), (100, 243), (100, 263),
-        (100, 283), (100, 300), (100, 320),
-        (335, 225),
+        (90, 225), (90, 243), (90, 263),
+        (90, 283), (90, 300), (90, 320),
+        (325, 225),
     ]
     DUPLICATE_PHOTO_TOP_LEFT = (487.55, 106.90)
     DUPLICATE_PHOTO_BOTTOM_RIGHT = (577.70, 201.35)
@@ -359,9 +308,9 @@ def fill_page_3(page, data, photo_source: Union[str, bytes]):
     ORIGINAL_SEMESTER_X = 558.4
     ORIGINAL_SEMESTER_Y = 465
     ORIGINAL_SUBJECT_POSITIONS = [
-        (100, 620), (100, 640), (100, 660),
-        (100, 680), (100, 700), (100, 720),
-        (335, 620),
+        (90, 620), (90, 640), (90, 660),
+        (90, 680), (90, 700), (90, 720),
+        (325, 620),
     ]
     ORIGINAL_PHOTO_TOP_LEFT = (497.35, 503.05)
     ORIGINAL_PHOTO_BOTTOM_RIGHT = (587.50, 597.50)
@@ -371,20 +320,8 @@ def fill_page_3(page, data, photo_source: Union[str, bytes]):
     # Compute photo rectangles
     rect_dup = pymupdf.Rect(*DUPLICATE_PHOTO_TOP_LEFT, *DUPLICATE_PHOTO_BOTTOM_RIGHT)
     rect_orig = pymupdf.Rect(*ORIGINAL_PHOTO_TOP_LEFT, *ORIGINAL_PHOTO_BOTTOM_RIGHT)
-
-    # High-resolution scale x4
-    SCALE = 4
-    duplicate_target_width = max(1, int(rect_dup.width * SCALE))
-    duplicate_target_height = max(1, int(rect_dup.height * SCALE))
-
-    duplicate_image = prepare_photo(
-        photo_source,
-        duplicate_target_width,
-        duplicate_target_height,
-    )
-    duplicate_image_buffer = BytesIO()
-    duplicate_image.save(duplicate_image_buffer, format="PNG")
-    duplicate_photo_png_bytes = duplicate_image_buffer.getvalue()
+    pdf_photo_bytes = _pdf_compatible_photo_bytes(photo_source)
+    pdf_photo_bytes = _add_bottom_padding(pdf_photo_bytes, padding_px=1)
 
     # --- INSERT DUPLICATE ---
     insert_hall_ticket(page, student["hall_ticket"], DUPLICATE_HALL_TICKET_POSITIONS, fontsize=12)
@@ -397,9 +334,9 @@ def fill_page_3(page, data, photo_source: Union[str, bytes]):
     insert_text(page, academic["semester"], DUPLICATE_SEMESTER_X, DUPLICATE_SEMESTER_Y, fontsize=12)
 
     for subject, (x, y) in zip(subjects, DUPLICATE_SUBJECT_POSITIONS):
-        insert_fitted_text(page, subject["name"], x, y, page.rect.width - 24 - x, fontsize=11)
+        insert_fitted_text(page, subject["name"], x, y, page.rect.width - 24 - x, fontsize=9)
 
-    page.insert_image(rect_dup, stream=duplicate_photo_png_bytes, keep_proportion=False)
+    page.insert_image(rect_dup, stream=pdf_photo_bytes, keep_proportion=True)
 
     # --- INSERT ORIGINAL ---
     insert_hall_ticket(page, student["hall_ticket"], ORIGINAL_HALL_TICKET_POSITIONS, fontsize=12)
@@ -412,21 +349,12 @@ def fill_page_3(page, data, photo_source: Union[str, bytes]):
     insert_text(page, academic["semester"], ORIGINAL_SEMESTER_X, ORIGINAL_SEMESTER_Y, fontsize=12)
 
     for subject, (x, y) in zip(subjects, ORIGINAL_SUBJECT_POSITIONS):
-        insert_fitted_text(page, subject["name"], x, y, page.rect.width - 24 - x, fontsize=11)
+        insert_fitted_text(page, subject["name"], x, y, page.rect.width - 24 - x, fontsize=9)
 
-    original_target_width = max(1, int(rect_orig.width * SCALE))
-    original_target_height = max(1, int(rect_orig.height * SCALE))
-    original_image = prepare_photo(
-        photo_source,
-        original_target_width,
-        original_target_height,
-    )
-    original_image_buffer = BytesIO()
-    original_image.save(original_image_buffer, format="PNG")
     page.insert_image(
         rect_orig,
-        stream=original_image_buffer.getvalue(),
-        keep_proportion=False,
+        stream=pdf_photo_bytes,
+        keep_proportion=True,
     )
 
 

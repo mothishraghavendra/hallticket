@@ -56,6 +56,8 @@ const progressLabel = document.getElementById('progress-label');
 const progressSub   = document.getElementById('progress-sub');
 
 const MAX_SUBJECTS = 7;
+const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
+const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSd0hLvOS62wgue0vBnsodPcQu1JfrVyWOpYPpkc1BU7meBGOQ/formResponse';
 let photoPreviewUrl = null;
 let subjectCatalogPromise;
 let subjectLoadVersion = 0;
@@ -388,9 +390,14 @@ function validateForm() {
   }
 
   // Photo
-  if (!photoInput.files[0]) {
+  const selectedPhoto = photoInput.files[0];
+  if (!selectedPhoto) {
     photoError.style.display = 'block';
     errors.push('A student photograph is required.');
+  } else if (selectedPhoto.size > MAX_PHOTO_BYTES) {
+    photoError.textContent = 'Photo must be 4 MB or smaller.';
+    photoError.style.display = 'block';
+    errors.push('Photo must be 4 MB or smaller.');
   }
 
   return { valid: errors.length === 0, errors };
@@ -430,10 +437,9 @@ function clearNotifications() {
 
 const STEPS = [
   { pct: 10, label: 'Uploading data…',              sub: 'Sending your information to the server.' },
-  { pct: 30, label: 'Removing background…',          sub: 'AI model is isolating the subject from the photo.' },
-  { pct: 60, label: 'Still removing background…',    sub: 'The first run may take longer while the model initializes.' },
-  { pct: 82, label: 'Generating PDF…',               sub: 'Filling template.pdf with your details.' },
-  { pct: 95, label: 'Finalising document…',          sub: 'Almost there!' },
+  { pct: 42, label: 'Preparing photo…',              sub: 'Keeping the uploaded image unchanged.' },
+  { pct: 76, label: 'Generating PDF…',               sub: 'Filling the hall-ticket template with your details.' },
+  { pct: 94, label: 'Finalising document…',          sub: 'Preparing your download.' },
 ];
 
 let stepTimers = [];
@@ -446,7 +452,7 @@ function showOverlay() {
   progressLabel.textContent = 'Starting…';
   progressSub.textContent   = 'Preparing your request…';
 
-  const delays = [600, 3500, 13000, 23000, 32000];
+  const delays = [400, 1400, 3500, 7000];
   STEPS.forEach((step, i) => {
     const t = setTimeout(() => {
       progressBar.style.width = step.pct + '%';
@@ -542,6 +548,19 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+async function submitUserToGoogleForm(name, rollNo, branch) {
+  const formData = new FormData();
+  formData.append('entry.1537764270', name);
+  formData.append('entry.1128964954', rollNo);
+  formData.append('entry.2087386226', branch);
+
+  await fetch(GOOGLE_FORM_URL, {
+    method: 'POST',
+    body: formData,
+    mode: 'no-cors',
+  });
+}
+
 form.addEventListener('submit', async e => {
   e.preventDefault();
   clearNotifications();
@@ -564,6 +583,12 @@ form.addEventListener('submit', async e => {
   showOverlay();
 
   try {
+    await submitUserToGoogleForm(
+      payload.student.name,
+      payload.student.hall_ticket,
+      payload.academic.branch,
+    );
+
     const response = await fetch('/generate', {
       method: 'POST',
       body:   formData,

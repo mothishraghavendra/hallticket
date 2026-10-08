@@ -17,9 +17,13 @@ _REGISTRY_PATH = Path(
 _WRITE_LOCK = threading.Lock()
 
 
-async def record_generated_name(name: str) -> None:
-    """Persist a generated ticket name without blocking the async event loop."""
+async def record_generated_name(name: str) -> bool:
+    """Persist generated names locally; serverless storage is not durable."""
+    if os.environ.get("VERCEL") == "1":
+        return False
+
     await asyncio.to_thread(_record_generated_name, name)
+    return True
 
 
 def _record_generated_name(name: str) -> None:

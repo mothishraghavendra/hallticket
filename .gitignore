@@ -29,3 +29,8 @@ Thumbs.db
 !/temp/.gitkeep
 /runtime-data/*.json
 !/runtime-data/.gitkeep
+
+# Local student data and personal photos
+/index.json
+/imgs/
+.vercel
